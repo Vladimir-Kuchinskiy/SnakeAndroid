@@ -1,9 +1,11 @@
 package com.example.vladimir.snake;
 
-import android.support.v7.app.AppCompatActivity;
+import android.app.Activity;
+import android.graphics.Point;
 import android.os.Bundle;
+import android.view.Display;
 
-public class SnakeActivity extends AppCompatActivity {
+public class SnakeActivity extends Activity {
     // Declare an instance of SnakeView
     SnakeView snakeView;
     // We will initialize it in onCreate

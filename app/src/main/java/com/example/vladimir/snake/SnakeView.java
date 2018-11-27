@@ -1,3 +1,5 @@
+package com.example.vladimir.snake;
+
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
@@ -102,6 +104,36 @@ class SnakeView extends SurfaceView implements Runnable {
         startGame();
     }
 
+    @Override
+    public void run() {
+        // The check for m_Playing prevents a crash at the start
+        // You could also extend the code to provide a pause feature
+        while (m_Playing) {
+
+            // Update 10 times a second
+            if(checkForUpdate()) {
+                updateGame();
+                drawGame();
+            }
+
+        }
+    }
+
+    public void pause() {
+        m_Playing = false;
+        try {
+            m_Thread.join();
+        } catch (InterruptedException e) {
+            // Error
+        }
+    }
+
+    public void resume() {
+        m_Playing = true;
+        m_Thread = new Thread(this);
+        m_Thread.start();
+    }
+
     public void startGame() {
         // Start with just a head, in the middle of the screen
         m_SnakeLength = 1;
@@ -116,6 +148,26 @@ class SnakeView extends SurfaceView implements Runnable {
 
         // Setup m_NextFrameTime so an update is triggered immediately
         m_NextFrameTime = System.currentTimeMillis();
+    }
+
+    public void loadSound() {
+        m_SoundPool = new SoundPool(10, AudioManager.STREAM_MUSIC, 0);
+        try {
+            // Create objects of the 2 required classes
+            // Use m_Context because this is a reference to the Activity
+            AssetManager assetManager = m_context.getAssets();
+            AssetFileDescriptor descriptor;
+
+            // Prepare the two sounds in memory
+            descriptor = assetManager.openFd("get_mouse_sound.ogg");
+            m_get_mouse_sound = m_SoundPool.load(descriptor, 0);
+
+            descriptor = assetManager.openFd("death_sound.ogg");
+            m_dead_sound = m_SoundPool.load(descriptor, 0);
+
+        } catch (IOException e) {
+            // Error
+        }
     }
 
     public void spawnMouse() {
@@ -185,5 +237,114 @@ class SnakeView extends SurfaceView implements Runnable {
         }
 
         return dead;
+    }
+
+    public void updateGame() {
+        // Did the head of the snake touch the mouse?
+        if (m_SnakeXs[0] == m_MouseX && m_SnakeYs[0] == m_MouseY) {
+            eatMouse();
+        }
+
+        moveSnake();
+
+        if (detectDeath()) {
+            //start again
+            m_SoundPool.play(m_dead_sound, 1, 1, 0, 0, 1);
+
+            startGame();
+        }
+    }
+
+    public void drawGame() {
+        // Prepare to draw
+        if (m_Holder.getSurface().isValid()) {
+            m_Canvas = m_Holder.lockCanvas();
+
+            // Clear the screen with my favorite color
+            m_Canvas.drawColor(Color.argb(255, 120, 87, 197));
+
+            // Set the color of the paint to draw the snake and mouse with
+            m_Paint.setColor(Color.argb(255, 255, 255, 255));
+
+            // Choose how big the score will be
+            m_Paint.setTextSize(50);
+            m_Canvas.drawText("Score:" + m_Score, 10, 30, m_Paint);
+
+            //Draw the snake
+            for (int i = 0; i < m_SnakeLength; i++) {
+                m_Canvas.drawRect(m_SnakeXs[i] * m_BlockSize,
+                        (m_SnakeYs[i] * m_BlockSize),
+                        (m_SnakeXs[i] * m_BlockSize) + m_BlockSize,
+                        (m_SnakeYs[i] * m_BlockSize) + m_BlockSize,
+                        m_Paint);
+            }
+
+            //draw the mouse
+            m_Canvas.drawRect(m_MouseX * m_BlockSize,
+                    (m_MouseY * m_BlockSize),
+                    (m_MouseX * m_BlockSize) + m_BlockSize,
+                    (m_MouseY * m_BlockSize) + m_BlockSize,
+                    m_Paint);
+
+            // Draw the whole frame
+            m_Holder.unlockCanvasAndPost(m_Canvas);
+        }
+    }
+
+    public boolean checkForUpdate() {
+
+        // Are we due to update the frame
+        if(m_NextFrameTime <= System.currentTimeMillis()) {
+            // Tenth of a second has passed
+
+            // Setup when the next update will be triggered
+            m_NextFrameTime = System.currentTimeMillis() + MILLIS_IN_A_SECOND / FPS;
+
+            // Return true so that the update and draw
+            // functions are executed
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent motionEvent) {
+
+        switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_UP:
+                if (motionEvent.getX() >= m_ScreenWidth / 2) {
+                    switch(m_Direction){
+                        case UP:
+                            m_Direction = Direction.RIGHT;
+                            break;
+                        case RIGHT:
+                            m_Direction = Direction.DOWN;
+                            break;
+                        case DOWN:
+                            m_Direction = Direction.LEFT;
+                            break;
+                        case LEFT:
+                            m_Direction = Direction.UP;
+                            break;
+                    }
+                } else {
+                    switch(m_Direction){
+                        case UP:
+                            m_Direction = Direction.LEFT;
+                            break;
+                        case LEFT:
+                            m_Direction = Direction.DOWN;
+                            break;
+                        case DOWN:
+                            m_Direction = Direction.RIGHT;
+                            break;
+                        case RIGHT:
+                            m_Direction = Direction.UP;
+                            break;
+                    }
+                }
+        }
+        return true;
     }
 }
