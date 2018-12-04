@@ -5,6 +5,8 @@ import android.graphics.Point;
 import android.os.Bundle;
 import android.view.Display;
 
+import io.realm.Realm;
+
 public class SnakeActivity extends Activity {
     // Declare an instance of SnakeView
     SnakeView snakeView;
@@ -24,6 +26,7 @@ public class SnakeActivity extends Activity {
 
         // Create a new View based on the SnakeView class
         snakeView = new SnakeView(this, size);
+        // Initialize Realm (just once per application)
 
         // Make snakeView the default view of the Activity
         setContentView(snakeView);

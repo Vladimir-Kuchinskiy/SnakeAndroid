@@ -10,6 +10,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import java.util.Random;
 
+import io.realm.Realm;
+
 class SnakeView extends SurfaceView implements Runnable {
     // All the code will run separately to the UI
     private Thread m_Thread = null;
@@ -45,8 +47,8 @@ class SnakeView extends SurfaceView implements Runnable {
     private final long MILLIS_IN_A_SECOND = 1000;
     // We will draw the frame much more often
 
-    // The current m_Score
-    private int m_Score;
+    // The current Score
+    private Score score;
 
     // Where is the mouse
     private Mouse mouse;
@@ -63,6 +65,7 @@ class SnakeView extends SurfaceView implements Runnable {
 
     public SnakeView(Context context, Point size) {
         super(context);
+        Realm.init(context);
 
         m_context = context;
 
@@ -82,6 +85,8 @@ class SnakeView extends SurfaceView implements Runnable {
         // Start the game
         startGame();
     }
+
+
 
     @Override
     public void run() {
@@ -117,8 +122,8 @@ class SnakeView extends SurfaceView implements Runnable {
         // And a mouse to eat
         spawnMouse();
 
-        // Reset the m_Score
-        m_Score = 0;
+        // Reset the Score
+        score = new Score();
 
         // Setup m_NextFrameTime so an update is triggered immediately
         m_NextFrameTime = System.currentTimeMillis();
@@ -139,12 +144,11 @@ class SnakeView extends SurfaceView implements Runnable {
         // Increase the size of the snake and score
         if (mouse.isBig()) {
             snake.eatBigMouse();
-            //add to the m_Score
-            m_Score = m_Score + 3;
+            score.increaseScoreValue(3);
         } else {
             snake.eatCommonMouse();
-            //add to the m_Score
-            m_Score = m_Score + 1;
+            //add to the Score
+            score.increaseScoreValue(1);
         }
         //replace the mouse
         spawnMouse();
@@ -159,6 +163,14 @@ class SnakeView extends SurfaceView implements Runnable {
 
         snake.move(m_Direction);
         if (snake.detectDeath()) {
+            if (score.getScoreValue() > 0) {
+                Realm realm = Realm.getDefaultInstance();
+                realm.beginTransaction();
+                Score finalScore = realm.createObject(Score.class);
+                finalScore.setScoreValue(score.getScoreValue());
+                realm.commitTransaction();
+                realm.close();
+            }
             startGame();
         }
     }
@@ -173,12 +185,16 @@ class SnakeView extends SurfaceView implements Runnable {
 
             // Set the color of the paint to draw the snake and mouse with
             m_Paint.setColor(Color.argb(255, 255, 255, 255));
-
+            Realm realm = Realm.getDefaultInstance();
             // Choose how big the score will be
             m_Paint.setTextSize(50);
-            m_Canvas.drawText("Score:" + m_Score, 10, 45, m_Paint);
-
+            m_Canvas.drawText("Score: " + score.getScoreValue(), 10, 45, m_Paint);
+            int highestScore = 0;
+            Number dbValue = realm.where(Score.class).max("scoreValue");
+            if (dbValue != null) highestScore = dbValue.intValue();
+            m_Canvas.drawText("Highest score: " + highestScore, 10, 90, m_Paint);
             //Draw the snake
+            realm.close();
             for (int i = 0; i < snake.getSnakeLength(); i++) {
                 m_Canvas.drawRect(snake.getXCoordinate(i) * m_BlockSize,
                         (snake.getYCoordinate(i) * m_BlockSize),
